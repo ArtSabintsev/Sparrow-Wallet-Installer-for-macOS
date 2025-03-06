@@ -71,12 +71,29 @@ TEMP_DIR=$(mktemp -d)
 cd "$TEMP_DIR"
 echo "Working in temporary directory: $TEMP_DIR"
 
-# Use the specific version
-VERSION="2.1.3"
-echo "Using version: $VERSION"
+# Detect the latest version from GitHub API
+echo "Detecting latest Sparrow Wallet version..."
+LATEST_VERSION_INFO=$(curl -s https://api.github.com/repos/sparrowwallet/sparrow/releases/latest)
+if [ $? -ne 0 ]; then
+    error_exit "Failed to fetch latest version information from GitHub"
+fi
+
+VERSION=$(echo "$LATEST_VERSION_INFO" | grep -o '"tag_name": *"[^"]*"' | sed 's/"tag_name": *"\(.*\)"/\1/')
+if [ -z "$VERSION" ]; then
+    error_exit "Failed to extract version information from GitHub API response"
+fi
+
+echo "Latest version detected: $VERSION"
+
+# Detect architecture
+ARCH="aarch64"
+if [[ $(uname -m) == "x86_64" ]]; then
+    ARCH="x86_64"
+fi
+echo "Detected architecture: $ARCH"
 
 # Set filenames
-DMG_FILE="Sparrow-$VERSION-aarch64.dmg"
+DMG_FILE="Sparrow-$VERSION-$ARCH.dmg"
 MANIFEST_FILE="sparrow-$VERSION-manifest.txt"
 MANIFEST_SIG_FILE="$MANIFEST_FILE.asc"
 KEY_FILE="pgp_keys.asc"
