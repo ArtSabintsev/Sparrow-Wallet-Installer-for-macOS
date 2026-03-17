@@ -165,6 +165,10 @@ if [[ $SKIP_VERIFY -eq 0 ]]; then
         ls -la "$DMG_FILE" "$MANIFEST_FILE" "$MANIFEST_SIG_FILE" "$KEY_FILE"
     fi
 
+    # Expected PGP key fingerprint for Craig Raw (Sparrow Wallet developer)
+    # See: https://sparrowwallet.com/download/
+    EXPECTED_FINGERPRINT="D4D0D3202FC06849A257B38DE94618334C674B40"
+
     # Import the developer's PGP key
     echo "Importing developer's PGP key..."
     gpg --import "$KEY_FILE"
@@ -178,8 +182,15 @@ if [[ $SKIP_VERIFY -eq 0 ]]; then
         echo "$VERIFICATION_RESULT"
         error_exit "Manifest signature verification failed! Cannot verify the authenticity of the download."
     fi
-    
-    echo "✅ Manifest signature verified successfully!"
+
+    # Verify the signature was made by the expected key
+    SIGNING_FINGERPRINT=$(echo "$VERIFICATION_RESULT" | grep -oE '[A-F0-9]{40}' | head -1)
+    if [[ "$SIGNING_FINGERPRINT" != "$EXPECTED_FINGERPRINT" ]]; then
+        echo "$VERIFICATION_RESULT"
+        error_exit "Manifest was signed by an unexpected key ($SIGNING_FINGERPRINT). Expected Craig Raw's key: $EXPECTED_FINGERPRINT"
+    fi
+
+    echo "✅ Manifest signature verified successfully (signed by $EXPECTED_FINGERPRINT)!"
     
     # Now verify the DMG file against the manifest
     echo "Verifying DMG file against manifest..."
@@ -195,7 +206,7 @@ if [[ $SKIP_VERIFY -eq 0 ]]; then
     # If not found, try different formats that might be in the manifest
     if [ -z "$EXPECTED_CHECKSUM" ]; then
         debug "Checksum not found with exact match, trying alternative patterns"
-        EXPECTED_CHECKSUM=$(grep -i "aarch64.dmg" "$MANIFEST_FILE" | awk '{print $1}')
+        EXPECTED_CHECKSUM=$(grep -i "${ARCH}.dmg" "$MANIFEST_FILE" | awk '{print $1}')
     fi
     
     if [ -z "$EXPECTED_CHECKSUM" ]; then
@@ -219,7 +230,7 @@ fi
 
 # Mount the DMG file
 echo "Mounting the DMG file..."
-MOUNT_DIR=$(hdiutil attach "$DMG_FILE" -nobrowse -noverify -noautoopen | grep 'Apple_HFS' | awk '{print $3}')
+MOUNT_DIR=$(hdiutil attach "$DMG_FILE" -nobrowse -noverify -noautoopen | grep -E 'Apple_HFS|Apple_APFS' | awk '{print $3}')
 
 if [ -z "$MOUNT_DIR" ]; then
     error_exit "Failed to mount the DMG file."
@@ -273,6 +284,15 @@ fi
 # Unmount the DMG
 echo "Unmounting DMG..."
 hdiutil detach "$MOUNT_DIR" -force
+
+# Verify macOS code signature
+echo "Verifying macOS code signature..."
+if codesign --verify --deep --strict "$DEST_PATH" 2>/dev/null; then
+    echo "✅ macOS code signature verified successfully!"
+else
+    echo "⚠️  Warning: macOS code signature verification failed or not present."
+    echo "    This may be expected for some builds. Proceed with caution."
+fi
 
 # Clean up
 cd ~

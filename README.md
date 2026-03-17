@@ -32,23 +32,23 @@ Sparrow Wallet is a powerful Bitcoin wallet that prioritizes security and privac
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/sparrow-installer.git
-   cd sparrow-installer
+   git clone https://github.com/ArtSabintsev/Sparrow-Wallet-Installer-for-macOS.git
+   cd Sparrow-Wallet-Installer-for-macOS
    ```
 
 2. Make the script executable:
    ```
-   chmod +x sparrow_install.sh
+   chmod +x sparrow_verify.sh
    ```
 
 3. Run the script:
    ```
-   ./sparrow_install.sh
+   ./sparrow_verify.sh
    ```
 
 4. If you encounter permission issues, you may need to use sudo:
    ```
-   sudo ./sparrow_install.sh
+   sudo ./sparrow_verify.sh
    ```
 
 ### Command Line Options
@@ -59,9 +59,11 @@ Sparrow Wallet is a powerful Bitcoin wallet that prioritizes security and privac
 ## How It Works
 
 1. **Download**: Fetches the latest Sparrow Wallet DMG file
-2. **Verification**: Downloads and validates PGP signatures and checksums
-3. **Installation**: Mounts the DMG, checks for existing installations, and installs to /Applications
-4. **Cleanup**: Unmounts the DMG and removes temporary files
+2. **PGP Verification**: Downloads and validates PGP signatures against Craig Raw's pinned key fingerprint
+3. **Checksum Verification**: Verifies the DMG's SHA-256 checksum against the signed manifest
+4. **Installation**: Mounts the DMG, checks for existing installations, and installs to /Applications
+5. **Code Signature Verification**: Verifies the installed app's macOS code signature
+6. **Cleanup**: Unmounts the DMG and removes temporary files
 
 ## Automatic Version Detection
 
@@ -76,6 +78,8 @@ No manual configuration is needed! The script will always download the latest co
 
 - The script verifies both the manifest signature and the DMG file checksum
 - PGP keys are fetched from keybase.io for Craig Raw (Sparrow Wallet developer)
+- **PGP key fingerprint is pinned** — the script rejects signatures from any key other than Craig Raw's known fingerprint (`D4D0D3202FC06849A257B38DE94618334C674B40`)
+- **macOS code signature verification** — after installation, the script verifies the app's code signature via `codesign`
 - The verification can be bypassed with `--skip-verify` but this is not recommended
 
 ## Troubleshooting
@@ -93,7 +97,7 @@ No manual configuration is needed! The script will always download the latest co
    
    Solution: Run with sudo
    ```
-   sudo ./sparrow_install.sh
+   sudo ./sparrow_verify.sh
    ```
 
 3. **Sparrow Is Running**
@@ -121,7 +125,7 @@ gpg: key E94618334C674B40: "Craig Raw <craig@sparrowwallet.com>" not changed
 gpg: Total number processed: 1
 gpg:              unchanged: 1
 Verifying manifest signature...
-✅ Manifest signature verified successfully!
+✅ Manifest signature verified successfully (signed by D4D0D3202FC06849A257B38DE94618334C674B40)!
 Verifying DMG file against manifest...
 Calculating SHA-256 checksum of downloaded file...
 Checksum: 1836037fdadc9a5faf756628ac723ac10dfddf1c5ccdb6d724b26f7cddbe59c8
@@ -132,6 +136,8 @@ Existing Sparrow.app found, replacing...
 Installing Sparrow.app to Applications folder...
 Unmounting DMG...
 "disk4" ejected.
+Verifying macOS code signature...
+✅ macOS code signature verified successfully!
 ✅ Sparrow Wallet 2.1.3 has been successfully installed to the Applications folder!
 You can now launch Sparrow from your Applications folder or Launchpad.
 ```
