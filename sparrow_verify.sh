@@ -2,11 +2,9 @@
 set -euo pipefail
 
 # Script to download, verify, and install Sparrow Wallet
-# Usage: ./sparrow_verify.sh [--debug] [--insecure-skip-all-verification]
+# Usage: ./sparrow_verify.sh [--debug]
 
 DEBUG=0
-SKIP_ALL_VERIFICATION=0
-DEPRECATED_SKIP_VERIFY_USED=0
 USE_SUDO=0
 SWAP_IN_PROGRESS=0
 
@@ -21,14 +19,12 @@ EXPECTED_FINGERPRINT="D4D0D3202FC06849A257B38DE94618334C674B40"
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [--debug] [--insecure-skip-all-verification]
+Usage: $(basename "$0") [--debug]
 
 Downloads, verifies, and installs Sparrow Wallet for macOS.
 
 Options:
   --debug                              Enable detailed debugging information
-  --insecure-skip-all-verification     Skip PGP signature and SHA-256 checksum verification
-  --skip-verify                        Deprecated alias for --insecure-skip-all-verification
   -h, --help                           Show this help message
 EOF
 }
@@ -106,14 +102,6 @@ parse_args() {
                 DEBUG=1
                 echo "Debug mode enabled"
                 ;;
-            --insecure-skip-all-verification)
-                SKIP_ALL_VERIFICATION=1
-                ;;
-            --skip-verify)
-                SKIP_ALL_VERIFICATION=1
-                DEPRECATED_SKIP_VERIFY_USED=1
-                echo "WARNING: --skip-verify is deprecated; use --insecure-skip-all-verification." >&2
-                ;;
             -h|--help)
                 usage
                 exit 0
@@ -177,10 +165,8 @@ check_dependencies() {
         fi
     done
 
-    if [[ $SKIP_ALL_VERIFICATION -eq 0 ]]; then
-        if ! check_command "gpg" "Install it with: brew install gnupg"; then
-            missing_deps=1
-        fi
+    if ! check_command "gpg" "Install it with: brew install gnupg"; then
+        missing_deps=1
     fi
 
     if [[ $DEBUG -eq 1 ]]; then
@@ -196,37 +182,7 @@ check_dependencies() {
 
     if [[ $missing_deps -eq 1 ]]; then
         echo "Please install the missing dependencies and try again." >&2
-        if [[ $SKIP_ALL_VERIFICATION -eq 0 ]]; then
-            echo "Do not bypass verification unless you explicitly accept the risk with --insecure-skip-all-verification." >&2
-        fi
         exit 1
-    fi
-}
-
-confirm_insecure_skip() {
-    local response
-
-    if [[ $SKIP_ALL_VERIFICATION -ne 1 ]]; then
-        return
-    fi
-
-    echo "WARNING: PGP signature verification and SHA-256 checksum verification will be skipped." >&2
-    echo "Only macOS code-signature verification will remain, and a code-signature failure will stop the install." >&2
-
-    if [[ $DEPRECATED_SKIP_VERIFY_USED -eq 1 ]]; then
-        echo "WARNING: --skip-verify still works as a deprecated alias, but it now skips both PGP and checksum verification." >&2
-    fi
-
-    if [[ ! -t 0 ]]; then
-        error_exit "--insecure-skip-all-verification requires interactive confirmation, but stdin is not a TTY."
-    fi
-
-    if ! read -r -p "Type INSECURE to continue without PGP and checksum verification: " response; then
-        error_exit "Failed to read confirmation."
-    fi
-
-    if [[ "$response" != "INSECURE" ]]; then
-        error_exit "Confirmation did not match. Aborting."
     fi
 }
 
@@ -652,7 +608,6 @@ finish_successful_swap() {
 parse_args "$@"
 require_macos_and_detect_arch
 check_dependencies
-confirm_insecure_skip
 create_working_directory
 
 echo "Detecting latest Sparrow Wallet version..."
@@ -686,23 +641,18 @@ debug "Key URL: $KEY_URL"
 download_file "$DMG_URL" "$DMG_FILE" "Sparrow Wallet DMG"
 check_nonempty_file "$DMG_FILE" "DMG file"
 
-if [[ $SKIP_ALL_VERIFICATION -eq 0 ]]; then
-    download_file "$MANIFEST_URL" "$MANIFEST_FILE" "manifest file"
-    download_file "$MANIFEST_SIG_URL" "$MANIFEST_SIG_FILE" "manifest signature"
-    download_file "$KEY_URL" "$KEY_FILE" "developer's PGP key"
+download_file "$MANIFEST_URL" "$MANIFEST_FILE" "manifest file"
+download_file "$MANIFEST_SIG_URL" "$MANIFEST_SIG_FILE" "manifest signature"
+download_file "$KEY_URL" "$KEY_FILE" "developer's PGP key"
 
-    check_nonempty_file "$MANIFEST_FILE" "Manifest file"
-    check_nonempty_file "$MANIFEST_SIG_FILE" "Manifest signature file"
-    check_nonempty_file "$KEY_FILE" "PGP key file"
+check_nonempty_file "$MANIFEST_FILE" "Manifest file"
+check_nonempty_file "$MANIFEST_SIG_FILE" "Manifest signature file"
+check_nonempty_file "$KEY_FILE" "PGP key file"
 
-    debug_verification_files
-    import_and_validate_pgp_key
-    verify_manifest_signature
-    verify_dmg_checksum
-else
-    echo "WARNING: PGP signature and SHA-256 checksum verification were skipped." >&2
-    echo "The authenticity of this download is not confirmed by the signed manifest." >&2
-fi
+debug_verification_files
+import_and_validate_pgp_key
+verify_manifest_signature
+verify_dmg_checksum
 
 mount_dmg
 

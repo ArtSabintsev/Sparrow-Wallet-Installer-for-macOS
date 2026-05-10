@@ -3,7 +3,7 @@
 A secure, convenient script for downloading, verifying, and installing Sparrow Bitcoin Wallet on macOS. 
 
 ## Note
-The script and README were created by Claude Sonnet 3.7 on March 5, 2025.
+Verification is mandatory. If PGP signature verification or SHA-256 checksum verification fails, installation stops.
 
 ## Features
 
@@ -52,8 +52,7 @@ The script should not be run with `sudo`. It will request administrator privileg
 ### Command Line Options
 
 - `--debug`: Enable detailed debugging information
-- `--insecure-skip-all-verification`: Skip both PGP signature verification and SHA-256 checksum verification. This requires interactive confirmation and is not recommended.
-- `--skip-verify`: Deprecated alias for `--insecure-skip-all-verification`
+- `-h`, `--help`: Show usage information
 
 ## How It Works
 
@@ -80,7 +79,6 @@ No manual configuration is needed! The script will always download the latest co
 - **PGP key fingerprint is pinned** — the script rejects signatures from any key other than Craig Raw's known fingerprint (`D4D0D3202FC06849A257B38DE94618334C674B40`)
 - **macOS code signature verification** — the script verifies the mounted app before copying and verifies the installed app after the swap
 - Gatekeeper assessment via `spctl` is logged as a warning-only check because it can fail in development environments
-- PGP and checksum verification can be bypassed only with `--insecure-skip-all-verification` or its deprecated alias `--skip-verify`. This skips both signature and checksum verification, requires interactive confirmation, and is not recommended.
 
 ## Troubleshooting
 
